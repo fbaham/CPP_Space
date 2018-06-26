@@ -2,6 +2,8 @@
 #include<windows.h>
 #include<conio.h>
 #include<stdlib.h>
+#include<list>
+using namespace std;
 
 #define ARRIBA 72
 #define IZQUIERDA 75
@@ -52,6 +54,9 @@ class NAVE{
 public:
 	// not private
 	NAVE(int _x, int _y, int _salud, int _vidas): x(_x), y(_y), salud(_salud), vidas(_vidas){}
+	int X() { return x; }
+	int Y() { return y; }
+	void damage() { salud --; }
 	void pintar();
 	void borrar();
 	void mover();
@@ -94,10 +99,16 @@ void NAVE::pintar_salud(){
 		gotoxy(86 + i, 3); printf("%c", 3);
 	}
 	gotoxy(80, 4); printf("Vidas %d", vidas);
+	gotoxy(80, 5); printf("X: %d Y: %d",x ,y );
 }
 
 void NAVE::muerte(){
 	if(salud == 0){
+		borrar();
+		gotoxy(x, y); printf("  *  ");
+		gotoxy(x, y + 1); printf(" * * ");
+		gotoxy(x, y + 2); printf("  *  ");
+		Sleep(200);
 		borrar();
 		gotoxy(x, y); printf("*****");
 		gotoxy(x, y + 1); printf("*****");
@@ -124,6 +135,7 @@ public:
 	Asteroid(int _x, int _y): x(_y), y(_y){}
 	void pintar();
 	void mover();
+	void choque(class NAVE &N);
 };
 
 void Asteroid::pintar(){
@@ -140,16 +152,76 @@ void Asteroid::mover(){
 	pintar();
 }
 
+void Asteroid::choque(class NAVE &N){
+	if(x >= N.X() && x <= N.X() + 5 && y >= N.Y() && y <= N.Y() + 2){
+		N.damage();
+		N.borrar();
+		N.pintar();
+		N.pintar_salud();
+		x = rand()%77;
+		y = 4;
+	}
+}
+
+class Laser{
+	int x, y;
+public:
+	int X() { return x; }
+	int Y() { return y; }
+	Laser(int _x, int _y): x(_x),y(_y){}
+	void mover();
+	bool fuera();
+};
+
+void Laser::mover(){
+	gotoxy(x,y); printf(" ");
+	y--;
+	gotoxy(x, y); printf("*");
+}
+
+bool Laser::fuera(){
+	if (y == 4) return true;
+	return false;
+}
+
 int main(){
 	ocultar_cursor(FALSE);
 	pintar_limites();
-	NAVE N(7, 7, 4, 5);
+	NAVE N(36, 27, 4, 5);
 	N.pintar();
 	N.pintar_salud();
-	Asteroid asteroid(10, 4);
+	list<Asteroid*> Asteroids;
+	list<Asteroid*>::iterator itAst;
+	for (int i = 0; i < 5; ++i){
+		Asteroids.push_back(new Asteroid(rand()%75 + 3, rand() % 5 + 4));
+	}
+
+	list<Laser*> Lasers;
+	list<Laser*>::iterator it;
 	bool game_over = false;
 	while(!game_over){
-		asteroid.mover();
+
+		if(kbhit()){
+			char tecla = getch();
+			if (tecla == 'a'){
+				Lasers.push_back(new Laser(N.X()+2, N.Y()-1));
+			}
+		}
+
+		for (it = Lasers.begin(); it != Lasers.end(); it ++){
+			(*it)->mover();
+			if ((*it) -> fuera()){
+				gotoxy((*it) -> X(), (*it) -> Y()); printf(" ");
+				delete(*it);
+				it = Lasers.erase(it);
+			}
+		}
+
+		for (itAst = Asteroids.begin(); itAst != Asteroids.end(); itAst++){
+			(*itAst) -> mover();
+			(*itAst) -> choque(N);
+		}
+		
 		N.muerte();
 		N.mover();
 		Sleep(30);
